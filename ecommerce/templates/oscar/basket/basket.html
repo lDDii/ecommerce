@@ -17,6 +17,19 @@
 
   <script>
     window.paymentErrorPath = "{% url 'payment_error' %}";
+    if(!window.location.href.includes('discount_jwt')){
+        $.ajax({
+            url: "{{ lms_url_root }}/api/discounts/{{ formset_lines_data.0.1.course_key }}",
+            xhrFields: {
+                withCredentials: true
+            }
+        }).done(function(discount){
+            if(discount.discount_applicable)
+            {
+                window.location.replace(url_string + '?discount_jwt='  + discount_json.jwt)
+            }
+        });
+    }
   </script>
 {% endblock %}
 
