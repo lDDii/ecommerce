@@ -15,13 +15,14 @@ def fix_enrollment_code_slug(apps, schema_editor):
     try:
         product_class = ProductClass.objects.get(slug=WRONG_SLUG)
         product_class.slug = RIGHT_SLUG
-        product_class.save()
+        product_class.save_without_historical_record()
     except ProductClass.DoesNotExist:
         pass
 
 
 def revert_migration(apps, schema_editor):
     try:
+        ProductClass.skip_history_when_saving = True
         product_class = ProductClass.objects.get(slug=RIGHT_SLUG)
         product_class.slug = WRONG_SLUG
         product_class.save()

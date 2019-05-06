@@ -8,10 +8,10 @@ from oscar.apps.catalogue.abstract_models import (
     AbstractCategory,
     AbstractOption,
     AbstractProduct,
-    AbstractProductClass,
-    AbstractProductCategory,
     AbstractProductAttribute,
-    AbstractProductAttributeValue
+    AbstractProductAttributeValue,
+    AbstractProductCategory,
+    AbstractProductClass
 )
 from simple_history.models import HistoricalRecords
 
@@ -23,6 +23,20 @@ from ecommerce.core.constants import (
 )
 from ecommerce.core.utils import log_message_and_raise_validation_error
 from ecommerce.journals.constants import JOURNAL_PRODUCT_CLASS_NAME  # TODO: journals dependency
+
+
+class CreateSafeHistoricalRecords(HistoricalRecords):
+    """
+    Overrides default HistoricalRecords so that newly created rows can avoid being saved to history.
+
+    This prevents errors during migrations with models that have HistoricalRecords and also
+    try to create rows as part of their migrations (before the history table is created).
+    """
+    def post_save(self, instance, created, using=None, **kwargs):
+        if hasattr(instance, "skip_history_when_saving"):
+            return
+        if not kwargs.get("raw", False):
+            self.create_historical_record(instance, created and "+" or "~", using=using)
 
 
 class Product(AbstractProduct):
@@ -111,7 +125,7 @@ def update_enrollment_code(sender, **kwargs):  # pylint: disable=unused-argument
 
 
 class ProductAttributeValue(AbstractProductAttributeValue):
-    history = HistoricalRecords()
+    history = CreateSafeHistoricalRecords()
 
 
 class Catalog(models.Model):
@@ -130,27 +144,27 @@ class Catalog(models.Model):
 class Category(AbstractCategory):
     # Do not record the slug field in the history table because AutoSlugField is not compatible with
     # django-simple-history.  Background: https://github.com/edx/course-discovery/pull/332
-    history = HistoricalRecords(excluded_fields=['slug'])
+    history = CreateSafeHistoricalRecords(excluded_fields=['slug'])
 
 
 class Option(AbstractOption):
     # Do not record the code field in the history table because AutoSlugField is not compatible with
     # django-simple-history.  Background: https://github.com/edx/course-discovery/pull/332
-    history = HistoricalRecords(excluded_fields=['code'])
+    history = CreateSafeHistoricalRecords(excluded_fields=['code'])
 
 
 class ProductClass(AbstractProductClass):
     # Do not record the slug field in the history table because AutoSlugField is not compatible with
     # django-simple-history.  Background: https://github.com/edx/course-discovery/pull/332
-    history = HistoricalRecords(excluded_fields=['slug'])
+    history = CreateSafeHistoricalRecords(excluded_fields=['slug'])
 
 
 class ProductCategory(AbstractProductCategory):
-    history = HistoricalRecords()
+    history = CreateSafeHistoricalRecords()
 
 
 class ProductAttribute(AbstractProductAttribute):
-    history = HistoricalRecords()
+    history = CreateSafeHistoricalRecords()
 
 
 from oscar.apps.catalogue.models import *  # noqa isort:skip pylint: disable=wildcard-import,unused-wildcard-import,wrong-import-position,wrong-import-order,ungrouped-imports
